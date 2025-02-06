@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>কৃষক থেকে ভোক্তা</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="top-controls">
+            <div class="language-switch">
+                <select id="languageSelect" class="language-select">
+                    <option value="bn">বাংলা</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            <div class="theme-switch-wrapper">
+                <label class="theme-switch" for="darkModeToggle">
+                    <input type="checkbox" id="darkModeToggle" />
+                    <div class="slider round">
+                        <span class="light-icon">☀️</span>
+                        <span class="dark-icon">🌙</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <header>
+            <div class="header-top">
+                <h1 data-lang="title">কৃষক থেকে ভোক্তা</h1>
+            </div>
+            <nav>
+                <button onclick="showSection('dashboard')" data-lang="nav-dashboard">ড্যাশবোর্ড</button>
+                <button onclick="showSection('sales')" data-lang="nav-sales">বিক্রয়</button>
+                <button onclick="showSection('purchases')" data-lang="nav-purchases">ক্রয়</button>
+                <button onclick="showSection('suppliers')" data-lang="nav-suppliers">সরবরাহকারী</button>
+                <button onclick="showSection('reports')" data-lang="nav-reports">রিপোর্ট</button>
+            </nav>
+        </header>
+
+        <main>
+            <section id="dashboard" class="active">
+                <h2 data-lang="dashboard-title">ড্যাশবোর্ড</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <h3 data-lang="today-sales">আজকের বিক্রয়</h3>
+                        <p id="todaySales">$0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 data-lang="today-purchases">আজকের ক্রয়</h3>
+                        <p id="todayPurchases">$0.00</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 data-lang="monthly-revenue">মাসিক আয়</h3>
+                        <p id="monthlyRevenue">$0.00</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sales">
+                <h2 data-lang="sales-title">বিক্রয় এন্ট্রি</h2>
+                <form id="salesForm">
+                    <div class="form-group">
+                        <label for="saleDate" data-lang="sale-date">তারিখ:</label>
+                        <input type="date" id="saleDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="productName" data-lang="product-name">পণ্যের নাম:</label>
+                        <input type="text" id="productName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="quantity" data-lang="quantity">পরিমাণ:</label>
+                        <div class="quantity-unit-group">
+                            <input type="number" id="quantity" required>
+                            <select id="unit" required>
+                                <option value="pcs" data-lang="pcs">পিস</option>
+                                <option value="kg" data-lang="kg">কিলোগ্রাম</option>
+                                <option value="g" data-lang="g">গ্রাম</option>
+                                <option value="l" data-lang="l">লিটার</option>
+                                <option value="ml" data-lang="ml">মিলিলিটার</option>
+                                <option value="dz" data-lang="dz">ডজন</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="price" data-lang="price">একক মূল্য:</label>
+                        <input type="number" id="price" step="0.01" required>
+                        <small class="unit-label"></small>
+                    </div>
+                    <button type="submit" data-lang="add-sale">বিক্রয় যোগ করুন</button>
+                </form>
+                <div class="history-section">
+                    <h3 data-lang="sales-history">বিক্রয় ইতিহাস</h3>
+                    <div class="history-filters">
+                        <div class="date-range">
+                            <div class="form-group">
+                                <label for="salesStartDate" data-lang="sales-start-date">থেকে:</label>
+                                <input type="date" id="salesStartDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="salesEndDate" data-lang="sales-end-date">পর্যন্ত:</label>
+                                <input type="date" id="salesEndDate" required>
+                            </div>
+                            <button class="view-history-btn" onclick="viewSalesHistory()" data-lang="view-history">ইতিহাস দেখুন</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="salesSearch" placeholder="বিক্রয় খুঁজুন...">
+                        </div>
+                    </div>
+                    <div class="history-list" id="salesHistory"></div>
+                </div>
+                <div id="salesList"></div>
+            </section>
+
+            <section id="purchases">
+                <h2 data-lang="purchases-title">ক্রয় এন্ট্রি</h2>
+                <form id="purchaseForm">
+                    <div class="form-group">
+                        <label for="purchaseDate" data-lang="purchase-date">তারিখ:</label>
+                        <input type="date" id="purchaseDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="supplier" data-lang="supplier">সরবরাহকারী নির্বাচন করুন:</label>
+                        <select id="supplier" required>
+                            <option value="" data-lang="choose-supplier">একজন সরবরাহকারী বেছে নিন</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="purchaseProduct" data-lang="purchase-product">পণ্যের নাম:</label>
+                        <input type="text" id="purchaseProduct" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="purchaseQuantity" data-lang="purchase-quantity">পরিমাণ:</label>
+                        <div class="quantity-unit-group">
+                            <input type="number" id="purchaseQuantity" required>
+                            <select id="purchaseUnit" required>
+                                <option value="pcs" data-lang="pcs">পিস</option>
+                                <option value="kg" data-lang="kg">কিলোগ্রাম</option>
+                                <option value="g" data-lang="g">গ্রাম</option>
+                                <option value="l" data-lang="l">লিটার</option>
+                                <option value="ml" data-lang="ml">মিলিলিটার</option>
+                                <option value="dz" data-lang="dz">ডজন</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="purchasePrice" data-lang="purchase-price">একক মূল্য:</label>
+                        <input type="number" id="purchasePrice" step="0.01" required>
+                        <small class="unit-label"></small>
+                    </div>
+                    <button type="submit" data-lang="add-purchase">ক্রয় যোগ করুন</button>
+                </form>
+                <div class="history-section">
+                    <h3 data-lang="purchases-history">ক্রয় ইতিহাস</h3>
+                    <div class="history-filters">
+                        <div class="date-range">
+                            <div class="form-group">
+                                <label for="purchaseStartDate" data-lang="purchase-start-date">থেকে:</label>
+                                <input type="date" id="purchaseStartDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="purchaseEndDate" data-lang="purchase-end-date">পর্যন্ত:</label>
+                                <input type="date" id="purchaseEndDate" required>
+                            </div>
+                            <button class="view-history-btn" onclick="viewPurchaseHistory()" data-lang="view-history">ইতিহাস দেখুন</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="purchaseSearch" placeholder="ক্রয় খুঁজুন...">
+                        </div>
+                    </div>
+                    <div class="history-list" id="purchaseHistory"></div>
+                </div>
+                <div id="purchaseList"></div>
+            </section>
+
+            <section id="suppliers">
+                <h2 data-lang="suppliers-title">সরবরাহকারী ব্যবস্থাপনা</h2>
+                <div class="suppliers-container">
+                    <div class="suppliers-form">
+                        <h3 data-lang="add-supplier">নতুন সরবরাহকারী যোগ করুন</h3>
+                        <form id="supplierForm">
+                            <div class="form-group">
+                                <label for="supplierName" data-lang="supplier-name">সরবরাহকারীর নাম:</label>
+                                <input type="text" id="supplierName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="supplierPhone" data-lang="supplier-phone">ফোন নম্বর:</label>
+                                <input type="tel" id="supplierPhone" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="supplierAddress" data-lang="supplier-address">ঠিকানা:</label>
+                                <textarea id="supplierAddress" required></textarea>
+                            </div>
+                            <button type="submit" data-lang="add-supplier-btn">সরবরাহকারী যোগ করুন</button>
+                        </form>
+                    </div>
+                    <div class="suppliers-list">
+                        <h3 data-lang="suppliers-list-title">সরবরাহকারীদের তালিকা</h3>
+                        <div class="search-box">
+                            <input type="text" id="supplierSearch" placeholder="সরবরাহকারী খুঁজুন...">
+                        </div>
+                        <div id="suppliersList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="reports">
+                <h2 data-lang="reports-title">রিপোর্ট</h2>
+                <div class="report-controls">
+                    <select id="reportType">
+                        <option value="daily" data-lang="daily-report">দৈনিক রিপোর্ট</option>
+                        <option value="monthly" data-lang="monthly-report">মাসিক রিপোর্ট</option>
+                        <option value="yearly" data-lang="yearly-report">বার্ষিক রিপোর্ট</option>
+                    </select>
+                    <input type="date" id="reportDate">
+                    <button onclick="generateReport()" data-lang="generate-report">রিপোর্ট তৈরি করুন</button>
+                    <button onclick="exportReport()" data-lang="export-report">পিডিএফ এ রপ্তানি করুন</button>
+                    <button onclick="exportToExcel()" class="excel-btn" data-lang="export-excel">এক্সেলে রপ্তানি করুন</button>
+                </div>
+                <div id="reportResults">
+                    <div class="report-table">
+                        <h3 data-lang="report-summary">রিপোর্ট সংক্ষিপ্ত</h3>
+                        <table id="reportTable">
+                            <thead>
+                                <tr>
+                                    <th data-lang="category">বিভাগ</th>
+                                    <th data-lang="total-amount">মোট পরিমাণ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="report-chart">
+                        <canvas id="reportChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <footer class="footer">
+            <p>&copy; 2025 <a href="http://www.linkedin.com/in/fazly-rabbi-8411061a0" target="_blank" rel="noopener noreferrer">Fazly Rabbi</a></p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+    <!-- Add jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <!-- Add SheetJS library -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</body>
+</html>
