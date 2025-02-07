@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Management - Farmer to Consumer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1><i class="fas fa-leaf"></i> <span data-translate="appTitle">Farmer to Consumer</span></h1>
+            <div class="language-selector">
+                <select id="languageSelector" onchange="switchLanguage(this.value)">
+                    <option value="en">English</option>
+                    <option value="bn">বাংলা</option>
+                </select>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="sales.html"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                <li><a href="purchases.html"><i class="fas fa-truck"></i> Purchases</a></li>
+                <li><a href="stock.html"><i class="fas fa-box"></i> Stock</a></li>
+                <li class="active"><a href="suppliers.html"><i class="fas fa-users"></i> Suppliers</a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> Reports</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div class="dashboard-header">
+            <h2>Supplier Management</h2>
+        </div>
+
+        <!-- Add/Edit Supplier Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-plus"></i> Add New Supplier</h3>
+            </div>
+            <div class="card-body">
+                <form id="supplierForm" class="input-form">
+                    <input type="hidden" id="editSupplierId">
+                    <div class="form-group">
+                        <label for="supplierName">Supplier Name:</label>
+                        <input type="text" id="supplierName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone:</label>
+                        <input type="tel" id="phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="address">Address:</label>
+                        <textarea id="address" required></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn" id="submitBtn">Add Supplier</button>
+                        <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Suppliers List -->
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header">
+                <h3><i class="fas fa-list"></i> Suppliers List</h3>
+                <div class="card-header-actions">
+                    <div class="date-filter">
+                        <label for="startDate">From:</label>
+                        <input type="date" id="startDate">
+                        <label for="endDate">To:</label>
+                        <input type="date" id="endDate">
+                        <button onclick="filterSuppliers()" class="btn btn-small">Filter</button>
+                        <button onclick="resetSuppliersFilter()" class="btn btn-small btn-secondary">Reset</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Address</th>
+                                <th>Added Date</th>
+                                <th>Last Purchase</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="suppliersTableBody">
+                            <!-- Suppliers data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2025 <a href="http://www.linkedin.com/in/fazly-rabbi-8411061a0" target="_blank">Fazly Rabbi</a></p>
+    </footer>
+    <script src="script.js"></script>
+    <script src="translations.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            DataStore.init();
+            displaySuppliers();
+            setDefaultDates();
+        });
+
+        function setDefaultDates() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+        }
+
+        function displaySuppliers(startDate = null, endDate = null) {
+            const tableBody = document.getElementById('suppliersTableBody');
+            let suppliers = DataStore.getData().suppliers;
+            const purchases = DataStore.getData().purchases;
+            
+            // Apply date filter if provided
+            if (startDate && endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59);
+                
+                suppliers = suppliers.filter(supplier => {
+                    const addedDate = new Date(supplier.dateAdded);
+                    return addedDate >= start && addedDate <= end;
+                });
+            } else {
+                // Show only last 10 suppliers if no date filter
+                suppliers = suppliers.slice(-10);
+            }
+            
+            // Sort by added date, newest first
+            suppliers.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+            
+            if (suppliers.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No suppliers found</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = suppliers.map(supplier => {
+                // Find the last purchase for this supplier
+                const supplierPurchases = purchases.filter(p => p.supplierId === supplier.id);
+                const lastPurchase = supplierPurchases.length > 0 
+                    ? formatDate(Math.max(...supplierPurchases.map(p => new Date(p.date))))
+                    : 'No purchases';
+                
+                return `
+                    <tr>
+                        <td>${supplier.name}</td>
+                        <td>${supplier.phone}</td>
+                        <td>${supplier.address}</td>
+                        <td>${formatDate(supplier.dateAdded)}</td>
+                        <td>${lastPurchase}</td>
+                        <td>
+                            <button onclick="editSupplier('${supplier.id}')" class="btn btn-small">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button onclick="deleteSupplier('${supplier.id}')" class="btn btn-small btn-danger">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterSuppliers() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date cannot be later than end date');
+                return;
+            }
+            
+            displaySuppliers(startDate, endDate);
+        }
+
+        function resetSuppliersFilter() {
+            setDefaultDates();
+            displaySuppliers();
+        }
+
+        // Handle supplier form submission
+        document.getElementById('supplierForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const supplierData = {
+                name: document.getElementById('supplierName').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                address: document.getElementById('address').value.trim()
+            };
+
+            // Validate input
+            if (!supplierData.name || !supplierData.phone || !supplierData.address) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const editId = document.getElementById('editSupplierId').value;
+            
+            try {
+                if (editId) {
+                    // Update existing supplier
+                    DataStore.updateSupplier(editId, supplierData);
+                } else {
+                    // Add new supplier
+                    DataStore.addSupplier(supplierData);
+                }
+
+                // Reset form
+                this.reset();
+                document.getElementById('editSupplierId').value = '';
+                document.getElementById('submitBtn').textContent = 'Add Supplier';
+                document.getElementById('cancelBtn').style.display = 'none';
+                
+                // Refresh display
+                displaySuppliers();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        // Cancel edit button
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            const form = document.getElementById('supplierForm');
+            form.reset();
+            document.getElementById('editSupplierId').value = '';
+            document.getElementById('submitBtn').textContent = 'Add Supplier';
+            this.style.display = 'none';
+        });
+
+        function editSupplier(supplierId) {
+            const data = DataStore.getData();
+            const supplier = data.suppliers.find(s => s.id === supplierId);
+            
+            if (supplier) {
+                document.getElementById('editSupplierId').value = supplier.id;
+                document.getElementById('supplierName').value = supplier.name;
+                document.getElementById('phone').value = supplier.phone;
+                document.getElementById('address').value = supplier.address;
+                document.getElementById('submitBtn').textContent = 'Update Supplier';
+                document.getElementById('cancelBtn').style.display = 'inline-block';
+            }
+        }
+
+        function deleteSupplier(supplierId) {
+            if (confirm('Are you sure you want to delete this supplier?')) {
+                const data = DataStore.getData();
+                data.suppliers = data.suppliers.filter(s => s.id !== supplierId);
+                DataStore.saveData(data);
+                displaySuppliers();
+            }
+        }
+    </script>
+</body>
+</html>

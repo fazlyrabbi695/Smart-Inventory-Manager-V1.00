@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Management - Farmer to Consumer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1><i class="fas fa-leaf"></i> <span data-translate="appTitle">Farmer to Consumer</span></h1>
+            <div class="language-selector">
+                <select id="languageSelector" onchange="switchLanguage(this.value)">
+                    <option value="en">English</option>
+                    <option value="bn">বাংলা</option>
+                </select>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="sales.html"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                <li><a href="purchases.html"><i class="fas fa-truck"></i> Purchases</a></li>
+                <li class="active"><a href="stock.html"><i class="fas fa-box"></i> Stock</a></li>
+                <li><a href="suppliers.html"><i class="fas fa-users"></i> Suppliers</a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> Reports</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div class="dashboard-header">
+            <h2>Stock Management</h2>
+        </div>
+
+        <!-- Add New Product Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-plus"></i> Add New Product</h3>
+            </div>
+            <div class="card-body">
+                <form id="productForm" class="input-form">
+                    <input type="hidden" id="editProductId">
+                    <div class="form-group">
+                        <label for="productName">Product Name:</label>
+                        <input type="text" id="productName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="quantity">Initial Quantity:</label>
+                        <input type="number" id="quantity" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="unit">Unit:</label>
+                        <select id="unit" required>
+                            <option value="">Select unit</option>
+                            <option value="kg">Kilogram (kg)</option>
+                            <option value="g">Gram (g)</option>
+                            <option value="L">Liter (L)</option>
+                            <option value="mL">Milliliter (mL)</option>
+                            <option value="pc">Piece (pc)</option>
+                            <option value="dz">Dozen (dz)</option>
+                            <option value="box">Box</option>
+                            <option value="bag">Bag</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="minStock">Minimum Stock Level:</label>
+                        <input type="number" id="minStock" step="0.01" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn" id="submitBtn">Add Product</button>
+                        <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Current Stock -->
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header">
+                <h3><i class="fas fa-boxes"></i> Current Stock</h3>
+                <div class="card-header-actions">
+                    <div class="date-filter">
+                        <label for="startDate">From:</label>
+                        <input type="date" id="startDate">
+                        <label for="endDate">To:</label>
+                        <input type="date" id="endDate">
+                        <button onclick="filterStock()" class="btn btn-small">Filter</button>
+                        <button onclick="resetStockFilter()" class="btn btn-small btn-secondary">Reset</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Current Stock</th>
+                                <th>Unit</th>
+                                <th>Min Stock Level</th>
+                                <th>Last Updated</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody">
+                            <!-- Stock data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2025 <a href="http://www.linkedin.com/in/fazly-rabbi-8411061a0" target="_blank">Fazly Rabbi</a></p>
+    </footer>
+    <script src="script.js"></script>
+    <script src="translations.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            DataStore.init();
+            displayStock();
+            setDefaultDates();
+        });
+
+        function setDefaultDates() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+        }
+
+        function displayStock(startDate = null, endDate = null) {
+            const tableBody = document.getElementById('stockTableBody');
+            let stock = DataStore.getData().stock;
+            
+            // Apply date filter if provided
+            if (startDate && endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59);
+                
+                stock = stock.filter(item => {
+                    const lastUpdated = new Date(item.lastUpdated || item.dateAdded);
+                    return lastUpdated >= start && lastUpdated <= end;
+                });
+            } else {
+                // Show only last 10 items if no date filter
+                stock = stock.slice(-10);
+            }
+            
+            // Sort by last updated date, newest first
+            stock.sort((a, b) => {
+                const dateA = new Date(b.lastUpdated || b.dateAdded);
+                const dateB = new Date(a.lastUpdated || a.dateAdded);
+                return dateA - dateB;
+            });
+            
+            if (stock.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">No stock items found</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = stock.map(item => {
+                const status = item.quantity <= item.minStock ? 'Low Stock' : 'In Stock';
+                const statusClass = status === 'Low Stock' ? 'status-low' : 'status-ok';
+                const lastUpdated = item.lastUpdated || item.dateAdded;
+                
+                return `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.unit}</td>
+                        <td>${item.minStock}</td>
+                        <td>${formatDate(lastUpdated)}</td>
+                        <td><span class="status-badge ${statusClass}">${status}</span></td>
+                        <td>
+                            <button onclick="editProduct('${item.id}')" class="btn btn-small">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button onclick="deleteProduct('${item.id}')" class="btn btn-small btn-danger">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterStock() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date cannot be later than end date');
+                return;
+            }
+            
+            displayStock(startDate, endDate);
+        }
+
+        function resetStockFilter() {
+            setDefaultDates();
+            displayStock();
+        }
+
+        // Handle product form submission
+        document.getElementById('productForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const productData = {
+                name: document.getElementById('productName').value,
+                quantity: parseFloat(document.getElementById('quantity').value),
+                unit: document.getElementById('unit').value,
+                minStock: parseFloat(document.getElementById('minStock').value),
+                dateAdded: new Date().toISOString()
+            };
+
+            const editId = document.getElementById('editProductId').value;
+            
+            try {
+                if (editId) {
+                    // Update existing product
+                    const data = DataStore.getData();
+                    const index = data.stock.findIndex(p => p.id === editId);
+                    if (index !== -1) {
+                        data.stock[index] = {
+                            ...data.stock[index],
+                            ...productData,
+                            lastUpdated: new Date().toISOString()
+                        };
+                        DataStore.saveData(data);
+                    }
+                } else {
+                    // Add new product
+                    const data = DataStore.getData();
+                    data.stock.push({
+                        id: 'PRD' + Date.now(),
+                        ...productData
+                    });
+                    DataStore.saveData(data);
+                }
+
+                // Reset form
+                this.reset();
+                document.getElementById('editProductId').value = '';
+                document.getElementById('submitBtn').textContent = 'Add Product';
+                document.getElementById('cancelBtn').style.display = 'none';
+                
+                // Refresh display
+                displayStock();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        // Cancel edit button
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            const form = document.getElementById('productForm');
+            form.reset();
+            document.getElementById('editProductId').value = '';
+            document.getElementById('submitBtn').textContent = 'Add Product';
+            this.style.display = 'none';
+        });
+
+        function editProduct(productId) {
+            const data = DataStore.getData();
+            const product = data.stock.find(p => p.id === productId);
+            
+            if (product) {
+                document.getElementById('editProductId').value = product.id;
+                document.getElementById('productName').value = product.name;
+                document.getElementById('quantity').value = product.quantity;
+                document.getElementById('unit').value = product.unit;
+                document.getElementById('minStock').value = product.minStock;
+                document.getElementById('submitBtn').textContent = 'Update Product';
+                document.getElementById('cancelBtn').style.display = 'inline-block';
+            }
+        }
+
+        function deleteProduct(productId) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                const data = DataStore.getData();
+                data.stock = data.stock.filter(p => p.id !== productId);
+                DataStore.saveData(data);
+                displayStock();
+            }
+        }
+    </script>
+</body>
+</html>

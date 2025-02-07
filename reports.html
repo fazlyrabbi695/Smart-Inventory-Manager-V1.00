@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Farmer to Consumer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1><i class="fas fa-leaf"></i> <span data-translate="appTitle">Farmer to Consumer</span></h1>
+            <div class="language-selector">
+                <select id="languageSelector" onchange="switchLanguage(this.value)">
+                    <option value="en">English</option>
+                    <option value="bn">বাংলা</option>
+                </select>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="sales.html"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                <li><a href="purchases.html"><i class="fas fa-truck"></i> Purchases</a></li>
+                <li><a href="stock.html"><i class="fas fa-box"></i> Stock</a></li>
+                <li><a href="suppliers.html"><i class="fas fa-users"></i> Suppliers</a></li>
+                <li class="active"><a href="reports.html"><i class="fas fa-chart-bar"></i> Reports</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div class="dashboard-header">
+            <h2>Reports</h2>
+        </div>
+
+        <!-- Generate Report Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-file-alt"></i> Generate Report</h3>
+            </div>
+            <div class="card-body">
+                <form id="reportForm" class="input-form">
+                    <div class="form-group">
+                        <label for="reportType">Report Type:</label>
+                        <select id="reportType" required>
+                            <option value="">Select report type</option>
+                            <option value="all">All Data</option>
+                            <option value="sales">Sales Report</option>
+                            <option value="purchases">Purchases Report</option>
+                            <option value="inventory">Inventory Report</option>
+                            <option value="suppliers">Suppliers Report</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportPeriod">Period:</label>
+                        <select id="reportPeriod" required>
+                            <option value="">Select period</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div id="customDateRange" style="display: none;">
+                        <div class="form-group">
+                            <label for="reportStartDate">Start Date:</label>
+                            <input type="date" id="reportStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="reportEndDate">End Date:</label>
+                            <input type="date" id="reportEndDate">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn">Generate Report</button>
+                        <button type="button" onclick="downloadCurrentReport()" class="btn">
+                            <i class="fas fa-download"></i> Download Excel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Report Display -->
+        <div id="reportDisplay" class="card" style="margin-top: 1rem; display: none;">
+            <div class="card-header">
+                <h3><i class="fas fa-table"></i> Report Results</h3>
+            </div>
+            <div class="card-body">
+                <div id="reportContent"></div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2025 <a href="http://www.linkedin.com/in/fazly-rabbi-8411061a0" target="_blank">Fazly Rabbi</a></p>
+    </footer>
+    <script src="script.js"></script>
+    <script src="excel.js"></script>
+    <script src="translations.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            DataStore.init();
+            setupReportPeriodListener();
+            setDefaultDates();
+        });
+
+        function setDefaultDates() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            if (document.getElementById('reportStartDate')) {
+                document.getElementById('reportStartDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+            }
+            if (document.getElementById('reportEndDate')) {
+                document.getElementById('reportEndDate').value = today.toISOString().split('T')[0];
+            }
+        }
+
+        function setupReportPeriodListener() {
+            document.getElementById('reportPeriod').addEventListener('change', function(e) {
+                const customDateRange = document.getElementById('customDateRange');
+                if (e.target.value === 'custom') {
+                    customDateRange.style.display = 'block';
+                } else {
+                    customDateRange.style.display = 'none';
+                }
+            });
+        }
+
+        let currentReportData = null;
+
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const reportType = document.getElementById('reportType').value;
+            const reportPeriod = document.getElementById('reportPeriod').value;
+            
+            let startDate, endDate;
+            if (reportPeriod === 'custom') {
+                startDate = document.getElementById('reportStartDate').value;
+                endDate = document.getElementById('reportEndDate').value;
+                if (!startDate || !endDate) {
+                    alert('Please select both start and end dates');
+                    return;
+                }
+            } else {
+                const dates = getPeriodDates(reportPeriod);
+                startDate = dates.start;
+                endDate = dates.end;
+            }
+
+            generateReport(reportType, startDate, endDate);
+        });
+
+        function getPeriodDates(period) {
+            const today = new Date();
+            const start = new Date();
+            
+            switch(period) {
+                case 'daily':
+                    start.setHours(0, 0, 0, 0);
+                    return { start, end: today };
+                case 'weekly':
+                    start.setDate(today.getDate() - 7);
+                    return { start, end: today };
+                case 'monthly':
+                    start.setMonth(today.getMonth() - 1);
+                    return { start, end: today };
+                case 'yearly':
+                    start.setFullYear(today.getFullYear() - 1);
+                    return { start, end: today };
+                default:
+                    return { start: null, end: null };
+            }
+        }
+
+        function generateReport(type, startDate, endDate) {
+            const data = DataStore.getData();
+            let reportData = [];
+            let allData = {};
+            
+            if (type === 'all') {
+                // Generate all reports
+                const salesData = data.sales
+                    .filter(sale => {
+                        const saleDate = new Date(sale.date);
+                        return saleDate >= new Date(startDate) && 
+                               saleDate <= new Date(endDate);
+                    })
+                    .map(sale => ({
+                        'Date': formatDate(sale.date),
+                        'Product': sale.productName,
+                        'Quantity': sale.quantity,
+                        'Unit': sale.unit,
+                        'Price': formatCurrency(sale.price),
+                        'Total': formatCurrency(sale.total)
+                    }));
+
+                const purchasesData = data.purchases
+                    .filter(purchase => {
+                        const purchaseDate = new Date(purchase.date);
+                        return purchaseDate >= new Date(startDate) && 
+                               purchaseDate <= new Date(endDate);
+                    })
+                    .map(purchase => {
+                        const supplier = data.suppliers.find(s => s.id === purchase.supplierId);
+                        return {
+                            'Date': formatDate(purchase.date),
+                            'Supplier': supplier ? supplier.name : 'Unknown',
+                            'Product': purchase.productName,
+                            'Quantity': purchase.quantity,
+                            'Unit': purchase.unit,
+                            'Price': formatCurrency(purchase.price),
+                            'Total': formatCurrency(purchase.total)
+                        };
+                    });
+
+                const inventoryData = data.stock.map(item => ({
+                    'Product': item.name,
+                    'Quantity': item.quantity,
+                    'Unit': item.unit,
+                    'Min Stock': item.minStock || 0,
+                    'Status': item.quantity <= (item.minStock || 0) ? 'Low Stock' : 'In Stock'
+                }));
+
+                const suppliersData = data.suppliers.map(supplier => {
+                    const supplierPurchases = data.purchases.filter(p => p.supplierId === supplier.id);
+                    const totalPurchases = supplierPurchases.reduce((sum, p) => sum + p.total, 0);
+                    return {
+                        'Name': supplier.name,
+                        'Contact': supplier.contact,
+                        'Address': supplier.address,
+                        'Total Purchases': formatCurrency(totalPurchases),
+                        'Last Purchase': supplierPurchases.length > 0 ? 
+                            formatDate(Math.max(...supplierPurchases.map(p => new Date(p.date)))) : 
+                            'Never'
+                    };
+                });
+
+                allData = {
+                    sales: salesData,
+                    purchases: purchasesData,
+                    inventory: inventoryData,
+                    suppliers: suppliersData
+                };
+                
+                // Show the first non-empty dataset in the table
+                reportData = salesData.length ? salesData :
+                           purchasesData.length ? purchasesData :
+                           inventoryData.length ? inventoryData :
+                           suppliersData;
+            } else {
+                switch(type) {
+                    case 'sales':
+                        reportData = data.sales
+                            .filter(sale => {
+                                const saleDate = new Date(sale.date);
+                                return saleDate >= new Date(startDate) && 
+                                       saleDate <= new Date(endDate);
+                            })
+                            .map(sale => ({
+                                'Date': formatDate(sale.date),
+                                'Product': sale.productName,
+                                'Quantity': sale.quantity,
+                                'Unit': sale.unit,
+                                'Price': formatCurrency(sale.price),
+                                'Total': formatCurrency(sale.total)
+                            }));
+                        break;
+                        
+                    case 'purchases':
+                        reportData = data.purchases
+                            .filter(purchase => {
+                                const purchaseDate = new Date(purchase.date);
+                                return purchaseDate >= new Date(startDate) && 
+                                       purchaseDate <= new Date(endDate);
+                            })
+                            .map(purchase => {
+                                const supplier = data.suppliers.find(s => s.id === purchase.supplierId);
+                                return {
+                                    'Date': formatDate(purchase.date),
+                                    'Supplier': supplier ? supplier.name : 'Unknown',
+                                    'Product': purchase.productName,
+                                    'Quantity': purchase.quantity,
+                                    'Unit': purchase.unit,
+                                    'Price': formatCurrency(purchase.price),
+                                    'Total': formatCurrency(purchase.total)
+                                };
+                            });
+                        break;
+                        
+                    case 'inventory':
+                        reportData = data.stock.map(item => ({
+                            'Product': item.name,
+                            'Quantity': item.quantity,
+                            'Unit': item.unit,
+                            'Min Stock': item.minStock || 0,
+                            'Status': item.quantity <= (item.minStock || 0) ? 'Low Stock' : 'In Stock'
+                        }));
+                        break;
+                        
+                    case 'suppliers':
+                        reportData = data.suppliers.map(supplier => {
+                            const supplierPurchases = data.purchases.filter(p => p.supplierId === supplier.id);
+                            const totalPurchases = supplierPurchases.reduce((sum, p) => sum + p.total, 0);
+                            return {
+                                'Name': supplier.name,
+                                'Contact': supplier.contact,
+                                'Address': supplier.address,
+                                'Total Purchases': formatCurrency(totalPurchases),
+                                'Last Purchase': supplierPurchases.length > 0 ? 
+                                    formatDate(Math.max(...supplierPurchases.map(p => new Date(p.date)))) : 
+                                    'Never'
+                            };
+                        });
+                        break;
+                }
+            }
+
+            // Store current report data for download
+            currentReportData = {
+                type,
+                data: reportData,
+                allData: type === 'all' ? allData : null,
+                dateRange: { start: startDate, end: endDate }
+            };
+
+            // Display report
+            displayReport(reportData);
+        }
+
+        function displayReport(data) {
+            if (!data.length) {
+                document.getElementById('reportContent').innerHTML = '<p class="text-center">No data found for the selected period</p>';
+                document.getElementById('reportDisplay').style.display = 'block';
+                return;
+            }
+
+            const headers = Object.keys(data[0]);
+            const table = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                ${headers.map(h => `<th>${h}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(row => `
+                                <tr>
+                                    ${headers.map(h => `<td>${row[h]}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('reportContent').innerHTML = table;
+            document.getElementById('reportDisplay').style.display = 'block';
+        }
+
+        function downloadCurrentReport() {
+            if (!currentReportData) {
+                alert('Please generate a report first');
+                return;
+            }
+
+            try {
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+                
+                // Add title worksheet
+                const titleData = [
+                    ['Report Type', capitalizeFirstLetter(currentReportData.type)],
+                    ['Generated Date', formatDate(new Date())],
+                    ['Date Range', `${formatDate(currentReportData.dateRange.start)} to ${formatDate(currentReportData.dateRange.end)}`],
+                    ['', ''] // Empty row for spacing
+                ];
+                const titleWs = XLSX.utils.aoa_to_sheet(titleData);
+                XLSX.utils.book_append_sheet(wb, titleWs, 'Report Info');
+
+                if (currentReportData.type === 'all') {
+                    // Add each type of data as a separate worksheet
+                    const { allData } = currentReportData;
+                    
+                    if (allData.sales.length > 0) {
+                        const salesWs = XLSX.utils.json_to_sheet(allData.sales);
+                        salesWs['!cols'] = Object.keys(allData.sales[0]).map(() => ({ wch: 15 }));
+                        XLSX.utils.book_append_sheet(wb, salesWs, 'Sales');
+                    }
+                    
+                    if (allData.purchases.length > 0) {
+                        const purchasesWs = XLSX.utils.json_to_sheet(allData.purchases);
+                        purchasesWs['!cols'] = Object.keys(allData.purchases[0]).map(() => ({ wch: 15 }));
+                        XLSX.utils.book_append_sheet(wb, purchasesWs, 'Purchases');
+                    }
+                    
+                    if (allData.inventory.length > 0) {
+                        const inventoryWs = XLSX.utils.json_to_sheet(allData.inventory);
+                        inventoryWs['!cols'] = Object.keys(allData.inventory[0]).map(() => ({ wch: 15 }));
+                        XLSX.utils.book_append_sheet(wb, inventoryWs, 'Inventory');
+                    }
+                    
+                    if (allData.suppliers.length > 0) {
+                        const suppliersWs = XLSX.utils.json_to_sheet(allData.suppliers);
+                        suppliersWs['!cols'] = Object.keys(allData.suppliers[0]).map(() => ({ wch: 15 }));
+                        XLSX.utils.book_append_sheet(wb, suppliersWs, 'Suppliers');
+                    }
+                } else {
+                    // Add single data worksheet
+                    if (currentReportData.data.length > 0) {
+                        const ws = XLSX.utils.json_to_sheet(currentReportData.data);
+                        ws['!cols'] = Object.keys(currentReportData.data[0]).map(() => ({ wch: 15 }));
+                        XLSX.utils.book_append_sheet(wb, ws, 'Data');
+                    }
+                }
+
+                // Generate filename
+                const filename = `${currentReportData.type}_report_${formatDate(new Date()).replace(/[\/\s]/g, '_')}.xlsx`;
+
+                // Save file
+                XLSX.writeFile(wb, filename);
+            } catch (error) {
+                console.error('Error generating Excel:', error);
+                alert('Error generating Excel file. Please try again.');
+            }
+        }
+
+        function capitalizeFirstLetter(string) {
+            if (!string) return '';
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        function formatDate(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            return d.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+    </script>
+</body>
+</html>
