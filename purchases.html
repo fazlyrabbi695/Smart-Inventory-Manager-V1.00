@@ -71,15 +71,15 @@
 
         <div class="card" style="margin-top: 1rem;">
             <div class="card-header">
-                <h3><i class="fas fa-history"></i> Purchase History</h3>
-                <div class="card-header-actions">
-                    <div class="date-filter">
-                        <label for="startDate">From:</label>
-                        <input type="date" id="startDate">
-                        <label for="endDate">To:</label>
-                        <input type="date" id="endDate">
-                        <button onclick="filterPurchases()" class="btn btn-small">Filter</button>
-                        <button onclick="resetPurchasesFilter()" class="btn btn-small btn-secondary">Reset</button>
+                <h3><i class="fas fa-list"></i> <span data-translate="purchasesList">Purchases List</span></h3>
+                <div class="date-filter">
+                    <div class="form-group">
+                        <label for="purchaseStartDate" data-translate="startDate">Start Date:</label>
+                        <input type="date" id="purchaseStartDate" onchange="filterPurchases()">
+                    </div>
+                    <div class="form-group">
+                        <label for="purchaseEndDate" data-translate="endDate">End Date:</label>
+                        <input type="date" id="purchaseEndDate" onchange="filterPurchases()">
                     </div>
                 </div>
             </div>
@@ -130,8 +130,8 @@
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(today.getDate() - 30);
             
-            document.getElementById('endDate').value = today.toISOString().split('T')[0];
-            document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+            document.getElementById('purchaseEndDate').value = today.toISOString().split('T')[0];
+            document.getElementById('purchaseStartDate').value = thirtyDaysAgo.toISOString().split('T')[0];
         }
 
         function displayPurchases(startDate = null, endDate = null) {
@@ -158,8 +158,8 @@
         }
 
         function filterPurchases() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
+            const startDate = document.getElementById('purchaseStartDate').value;
+            const endDate = document.getElementById('purchaseEndDate').value;
             
             if (!startDate || !endDate) {
                 alert('Please select both start and end dates');
@@ -172,11 +172,6 @@
             }
             
             displayPurchases(startDate, endDate);
-        }
-
-        function resetPurchasesFilter() {
-            setDefaultDates();
-            displayPurchases();
         }
 
         // Handle new purchase form submission

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales - Farmer to Consumer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1><i class="fas fa-leaf"></i> <span data-translate="appTitle">Farmer to Consumer</span></h1>
+            <div class="language-selector">
+                <select id="languageSelector" onchange="switchLanguage(this.value)">
+                    <option value="en">English</option>
+                    <option value="bn">বাংলা</option>
+                </select>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li class="active"><a href="sales.html"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                <li><a href="purchases.html"><i class="fas fa-truck"></i> Purchases</a></li>
+                <li><a href="stock.html"><i class="fas fa-box"></i> Stock</a></li>
+                <li><a href="suppliers.html"><i class="fas fa-users"></i> Suppliers</a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> Reports</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div class="dashboard-header">
+            <h2>Sales Management</h2>
+        </div>
+
+        <!-- New Sale Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-plus"></i> New Sale</h3>
+            </div>
+            <div class="card-body">
+                <form id="saleForm" class="input-form">
+                    <div class="form-group">
+                        <label for="productId">Product:</label>
+                        <select id="productId" required onchange="updateUnitSelect()">
+                            <option value="">Select a product</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quantity">Quantity:</label>
+                        <input type="number" id="quantity" required min="0.01" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="unit">Unit:</label>
+                        <select id="unit" required>
+                            <option value="">Select unit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price per Unit:</label>
+                        <input type="number" id="price" required min="0.01" step="0.01">
+                    </div>
+                    <button type="submit" class="btn">Add Sale</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sales History -->
+        <div class="card" style="margin-top: 1rem;">
+            <div class="card-header">
+                <h3><i class="fas fa-history"></i> Sales History</h3>
+                <div class="card-header-actions">
+                    <div class="date-filter">
+                        <label for="startDate">From:</label>
+                        <input type="date" id="startDate">
+                        <label for="endDate">To:</label>
+                        <input type="date" id="endDate">
+                        <button onclick="filterSales()" class="btn btn-small">Filter</button>
+                        <button onclick="resetSalesFilter()" class="btn btn-small btn-secondary">Reset</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Price/Unit</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTableBody">
+                            <!-- Sales data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="salesPagination" class="pagination">
+                    <!-- Pagination will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2025 <a href="http://www.linkedin.com/in/fazly-rabbi-8411061a0" target="_blank">Fazly Rabbi</a></p>
+    </footer>
+    <script src="script.js"></script>
+    <script src="translations.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            DataStore.init();
+            populateProductSelect();
+            displaySales();
+            setDefaultDates();
+        });
+
+        function setDefaultDates() {
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+        }
+
+        function updateUnitSelect() {
+            const productId = document.getElementById('productId').value;
+            const unitSelect = document.getElementById('unit');
+            
+            if (!productId) {
+                unitSelect.innerHTML = '<option value="">Select unit</option>';
+                return;
+            }
+
+            const product = DataStore.getData().stock.find(p => p.id === productId);
+            if (!product) {
+                unitSelect.innerHTML = '<option value="">Select unit</option>';
+                return;
+            }
+
+            const compatibleUnits = UnitConversion.getCompatibleUnits(product.unit);
+            unitSelect.innerHTML = '<option value="">Select unit</option>' +
+                compatibleUnits.map(unit => 
+                    `<option value="${unit}">${unit}</option>`
+                ).join('');
+        }
+
+        function displaySales(startDate = null, endDate = null) {
+            const tableBody = document.getElementById('salesTableBody');
+            let sales = DataStore.getData().sales;
+            
+            // Apply date filter if provided
+            if (startDate && endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59); // Include the entire end date
+                
+                sales = sales.filter(sale => {
+                    const saleDate = new Date(sale.date);
+                    return saleDate >= start && saleDate <= end;
+                });
+            } else {
+                // Show only last 10 sales if no date filter
+                sales = sales.slice(-10);
+            }
+            
+            // Sort by date, newest first
+            sales.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            if (sales.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No sales found</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = sales.map(sale => `
+                <tr>
+                    <td>${formatDate(sale.date)}</td>
+                    <td>${sale.productName}</td>
+                    <td>${sale.quantity} ${sale.unit}</td>
+                    <td>${formatCurrency(sale.price)}</td>
+                    <td>${formatCurrency(sale.total)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterSales() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date cannot be later than end date');
+                return;
+            }
+            
+            displaySales(startDate, endDate);
+        }
+
+        function resetSalesFilter() {
+            setDefaultDates();
+            displaySales();
+        }
+
+        function populateProductSelect() {
+            const select = document.getElementById('productId');
+            const products = DataStore.getData().stock;
+            
+            select.innerHTML = '<option value="">Select a product</option>' +
+                products.map(product => 
+                    `<option value="${product.id}">${product.name} (${product.quantity} ${product.unit} available)</option>`
+                ).join('');
+        }
+
+        // Handle new sale form submission
+        document.getElementById('saleForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            try {
+                const productId = document.getElementById('productId').value;
+                const quantity = parseFloat(document.getElementById('quantity').value);
+                const price = parseFloat(document.getElementById('price').value);
+                const unit = document.getElementById('unit').value;
+
+                if (!productId || !quantity || !price || !unit) {
+                    throw new Error('Please fill in all fields');
+                }
+
+                // Add sale
+                DataStore.addSale(productId, quantity, price, unit);
+
+                // Reset form
+                this.reset();
+                document.getElementById('productId').focus();
+                updateUnitSelect();
+
+                // Refresh displays
+                populateProductSelect();
+                displaySales();
+
+                // Update dashboard if on index page
+                if (typeof updateDashboard === 'function') {
+                    updateDashboard();
+                }
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+    </script>
+</body>
+</html>
